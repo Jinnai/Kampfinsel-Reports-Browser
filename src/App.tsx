@@ -1,20 +1,29 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
-import { buildReportUpload, normalizeReportForHash, parseSpyReportText, type SpyReportRow } from './domain/report';
+import {
+  buildReportUpload,
+  formatReportCoordinates,
+  matchesCoordinatePrefix,
+  normalizeReportForHash,
+  parseSpyReportText,
+  type SpyReportRow,
+} from './domain/report';
 import { isSupabaseConfigured, supabase } from './lib/supabase';
 
 type FilterState = {
   maxAgeDays: number;
   player: string;
   alliance: string;
-  ocean: string;
+  coordinates: string;
 };
 
 const defaultFilters: FilterState = {
   maxAgeDays: 2,
   player: '',
   alliance: '',
-  ocean: '',
+  coordinates: '',
 };
+
+const CALCULATOR_URL = 'https://jinnai.github.io/Kampfinsel-Verlustrechner/';
 
 const hashReport = async (rawReport: string): Promise<string> => {
   const payload = new TextEncoder().encode(normalizeReportForHash(rawReport));
@@ -24,13 +33,40 @@ const hashReport = async (rawReport: string): Promise<string> => {
     .join('');
 };
 
+const toBase64Utf8 = (value: string): string =>
+  Array.from(new TextEncoder().encode(value))
+    .reduce((binary, byte) => `${binary}${String.fromCharCode(byte)}`, '');
+
+const calculatorUrlForReport = (rawReport: string): string =>
+  `${CALCULATOR_URL}#report=${encodeURIComponent(btoa(toBase64Utf8(rawReport)))}`;
+
+const formatPlayerAlliance = (report: SpyReportRow): string => {
+  const player = report.target_player || 'Unbekannter Spieler';
+  return report.target_alliance ? `${player} [${report.target_alliance}]` : player;
+};
+
 export const App = () => {
   const [filters, setFilters] = useState<FilterState>(defaultFilters);
   const [reports, setReports] = useState<SpyReportRow[]>([]);
   const [rawReport, setRawReport] = useState('');
+  const [copiedReportId, setCopiedReportId] = useState<string | null>(null);
   const parsedPreview = useMemo(() => parseSpyReportText(rawReport), [rawReport]);
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const filteredReports = useMemo(() => {
+    const fromDate = new Date();
+    fromDate.setDate(fromDate.getDate() - filters.maxAgeDays);
+    const player = filters.player.trim().toLowerCase();
+    const alliance = filters.alliance.trim().toLowerCase();
+
+    return reports.filter((report) => {
+      if (new Date(report.reported_at) < fromDate) return false;
+      if (player && !String(report.target_player ?? '').toLowerCase().includes(player)) return false;
+      if (alliance && !String(report.target_alliance ?? '').toLowerCase().includes(alliance)) return false;
+      if (!matchesCoordinatePrefix(report, filters.coordinates)) return false;
+      return true;
+    });
+  }, [filters, reports]);
 
   const loadReports = async () => {
     if (!supabase) {
@@ -41,28 +77,14 @@ export const App = () => {
     setMessage(null);
 
     const fromDate = new Date();
-    fromDate.setDate(fromDate.getDate() - filters.maxAgeDays);
+    fromDate.setDate(fromDate.getDate() - 180);
 
-    let query = supabase
+    const { data, error } = await supabase
       .from('spy_reports')
       .select('*')
       .gte('reported_at', fromDate.toISOString())
       .order('reported_at', { ascending: false })
       .limit(200);
-
-    if (filters.player.trim()) {
-      query = query.ilike('target_player', `%${filters.player.trim()}%`);
-    }
-
-    if (filters.alliance.trim()) {
-      query = query.ilike('target_alliance', `%${filters.alliance.trim()}%`);
-    }
-
-    if (filters.ocean.trim()) {
-      query = query.eq('ocean', Number(filters.ocean));
-    }
-
-    const { data, error } = await query;
     setIsLoading(false);
 
     if (error) {
@@ -131,6 +153,12 @@ export const App = () => {
     setRawReport('');
     setMessage(error?.code === '23505' ? 'Bericht war bereits vorhanden.' : 'Bericht gespeichert.');
     await loadReports();
+  };
+
+  const copyRawReport = async (report: SpyReportRow) => {
+    await navigator.clipboard.writeText(report.raw_report);
+    setCopiedReportId(report.id);
+    window.setTimeout(() => setCopiedReportId((current) => (current === report.id ? null : current)), 1500);
   };
 
   return (
@@ -223,7 +251,9 @@ export const App = () => {
         <section className="panel browse-panel">
           <div className="panel-header">
             <h2>Berichte browsen</h2>
-            <span>{reports.length} Treffer</span>
+            <span>
+              {filteredReports.length} / {reports.length} Treffer
+            </span>
           </div>
           <div className="filters">
             <label>
@@ -259,45 +289,68 @@ export const App = () => {
               />
             </label>
             <label>
-              Ozean
+              Koordinaten
               <input
-                inputMode="numeric"
-                value={filters.ocean}
+                value={filters.coordinates}
                 onChange={(event) =>
-                  setFilters((current) => ({ ...current, ocean: event.target.value }))
+                  setFilters((current) => ({ ...current, coordinates: event.target.value }))
                 }
               />
             </label>
-            <button type="button" onClick={loadReports} disabled={isLoading || !isSupabaseConfigured}>
-              Filtern
-            </button>
           </div>
 
           <div className="report-list">
-            {reports.map((report) => (
+            {filteredReports.map((report) => (
               <article className="report-row" key={report.id}>
-                <div>
-                  <strong>{report.target_player || 'Unbekannter Spieler'}</strong>
-                  <span>{report.target_alliance || 'Keine Allianz'}</span>
+                <div className="report-main">
+                  <div>
+                    <strong>{formatPlayerAlliance(report)}</strong>
+                    <span>{formatReportCoordinates(report.ocean, report.island_y, report.island_x)}</span>
+                  </div>
                 </div>
-                <div>
-                  <span>
-                    {report.ocean ?? '-'}:{report.island_y ?? '-'}:{report.island_x ?? '-'}
-                  </span>
+                <div className="report-actions">
+                  <time dateTime={report.reported_at}>
+                    {new Intl.DateTimeFormat('de-DE', {
+                      dateStyle: 'short',
+                      timeStyle: 'short',
+                    }).format(new Date(report.reported_at))}
+                  </time>
                 </div>
-                <time dateTime={report.reported_at}>
-                  {new Intl.DateTimeFormat('de-DE', {
-                    dateStyle: 'short',
-                    timeStyle: 'short',
-                  }).format(new Date(report.reported_at))}
-                </time>
-                <details>
-                  <summary>Rohbericht</summary>
+                <details className="report-details">
+                  <summary>
+                    <span className="report-summary-label">
+                      <span className="report-summary-arrow">▸</span>
+                      Rohbericht
+                    </span>
+                    <span className="report-detail-actions">
+                      <button
+                        className="copy-report-button"
+                        type="button"
+                        title="Rohbericht kopieren"
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          void copyRawReport(report);
+                        }}
+                      >
+                        {copiedReportId === report.id ? '✓' : '📋'}
+                      </button>
+                      <a
+                        className="calculator-link"
+                        href={calculatorUrlForReport(report.raw_report)}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        Verlustrechner
+                      </a>
+                    </span>
+                  </summary>
                   <pre>{report.raw_report}</pre>
                 </details>
               </article>
             ))}
-            {!reports.length && <p className="empty">Keine Berichte fur diese Filter.</p>}
+            {!filteredReports.length && <p className="empty">Keine Berichte fur diese Filter.</p>}
           </div>
         </section>
       </section>

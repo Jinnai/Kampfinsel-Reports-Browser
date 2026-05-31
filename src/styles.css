@@ -157,7 +157,7 @@ label {
 
 .filters {
   align-items: end;
-  grid-template-columns: 8rem repeat(3, minmax(0, 1fr)) auto;
+  grid-template-columns: 8rem repeat(3, minmax(0, 1fr));
 }
 
 .panel-header {
@@ -181,22 +181,110 @@ label {
   border-radius: 6px;
   display: grid;
   gap: 0.75rem;
-  grid-template-columns: 1.1fr 0.8fr auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   padding: 0.85rem;
 }
 
-.report-row div {
-  display: grid;
-  gap: 0.2rem;
+.report-main {
+  align-items: start;
+  display: flex;
+  gap: 0.75rem;
 }
 
-.report-row span,
+.report-main div {
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.report-main span,
 .report-row time {
   color: #52616f;
 }
 
-.report-row details {
+.report-actions {
+  align-items: end;
+  display: grid;
+  gap: 0.45rem;
+  justify-items: end;
+}
+
+.report-details {
   grid-column: 1 / -1;
+}
+
+.report-details summary {
+  align-items: center;
+  cursor: pointer;
+  display: flex;
+  gap: 0.75rem;
+  justify-content: space-between;
+  list-style: none;
+}
+
+.report-details summary::-webkit-details-marker {
+  display: none;
+}
+
+.report-summary-label {
+  align-items: center;
+  color: #17202a;
+  display: inline-flex;
+  font-size: 1rem;
+  gap: 0.35rem;
+}
+
+.report-summary-arrow {
+  color: #17202a;
+  display: inline-block;
+  font-size: 1rem;
+  line-height: 1;
+  transition: transform 0.16s ease;
+  width: 0.9rem;
+}
+
+.report-details[open] .report-summary-arrow {
+  transform: rotate(90deg);
+}
+
+.report-detail-actions {
+  align-items: center;
+  display: inline-flex;
+  gap: 0.4rem;
+}
+
+.copy-report-button {
+  align-items: center;
+  background: white;
+  border: 1px solid #c8d3df;
+  border-radius: 6px;
+  color: #176b87;
+  display: inline-flex;
+  font-size: 0.95rem;
+  height: 2rem;
+  justify-content: center;
+  padding: 0;
+  width: 2rem;
+}
+
+.copy-report-button:hover {
+  border-color: #176b87;
+}
+
+.calculator-link {
+  border: 1px solid #c8d3df;
+  border-radius: 6px;
+  color: #176b87;
+  flex: 0 0 auto;
+  font-size: 0.9rem;
+  font-weight: 700;
+  padding: 0.4rem 0.6rem;
+  text-align: center;
+  text-decoration: none;
+}
+
+.calculator-link:hover {
+  border-color: #176b87;
 }
 
 .report-row pre {
@@ -223,6 +311,10 @@ label {
   .filters,
   .report-row {
     grid-template-columns: 1fr;
+  }
+
+  .report-main {
+    align-items: stretch;
   }
 
   .topbar {

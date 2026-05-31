@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeReportForHash, parseSpyReportText } from './report';
+import { matchesCoordinatePrefix, normalizeReportForHash, parseSpyReportText } from './report';
 
 const playerReport = `
 Spähbericht
@@ -119,5 +119,20 @@ describe('normalizeReportForHash', () => {
     expect(normalizeReportForHash(' Spieler: Test\n\nOzean: 12 ')).toBe(
       normalizeReportForHash('spieler: test ozean: 12'),
     );
+  });
+});
+
+describe('matchesCoordinatePrefix', () => {
+  const report = { ocean: 16, island_y: 4, island_x: 12 };
+
+  it('matches coordinate prefixes from the start', () => {
+    expect(matchesCoordinatePrefix(report, '16')).toBe(true);
+    expect(matchesCoordinatePrefix(report, '16:4:')).toBe(true);
+    expect(matchesCoordinatePrefix(report, '16:4:1')).toBe(true);
+  });
+
+  it('does not match coordinate fragments outside the start', () => {
+    expect(matchesCoordinatePrefix(report, '4:12')).toBe(false);
+    expect(matchesCoordinatePrefix({ ocean: 12, island_y: 3, island_x: 19 }, '19')).toBe(false);
   });
 });

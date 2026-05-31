@@ -228,6 +228,23 @@ export const parseSpyReportText = (rawReport: string): ParsedSpyReport => {
 export const normalizeReportForHash = (rawReport: string): string =>
   rawReport.replace(/\s+/g, ' ').trim().toLowerCase();
 
+export const formatReportCoordinates = (
+  ocean: number | null | undefined,
+  islandY: number | null | undefined,
+  islandX: number | null | undefined,
+): string => `${ocean ?? '-'}:${islandY ?? '-'}:${islandX ?? '-'}`;
+
+export const matchesCoordinatePrefix = (
+  report: Pick<SpyReportRow, 'ocean' | 'island_y' | 'island_x'>,
+  query: string,
+): boolean => {
+  const normalizedQuery = query.trim();
+  if (!normalizedQuery) return true;
+
+  return formatReportCoordinates(report.ocean, report.island_y, report.island_x)
+    .startsWith(normalizedQuery);
+};
+
 export const buildReportUpload = (rawReport: string): SpyReportUpload => {
   const parsed = parseSpyReportText(rawReport);
 
