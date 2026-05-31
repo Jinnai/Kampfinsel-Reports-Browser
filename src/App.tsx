@@ -89,7 +89,7 @@ export const App = () => {
 
     const upload = buildReportUpload(rawReport);
     const reportHash = await hashReport(upload.rawReport);
-    const { error } = await supabase.from('spy_reports').upsert(
+    const { error } = await supabase.from('spy_reports').insert(
       {
         report_hash: reportHash,
         reported_at: upload.reportedAt,
@@ -109,18 +109,17 @@ export const App = () => {
         },
         source: upload.source,
       },
-      { onConflict: 'report_hash' },
     );
 
     setIsLoading(false);
 
-    if (error) {
+    if (error && error.code !== '23505') {
       setMessage(error.message);
       return;
     }
 
     setRawReport('');
-    setMessage('Bericht gespeichert.');
+    setMessage(error?.code === '23505' ? 'Bericht war bereits vorhanden.' : 'Bericht gespeichert.');
     await loadReports();
   };
 
