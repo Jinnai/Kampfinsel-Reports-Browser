@@ -1,4 +1,11 @@
 export type ReportSource = 'manual' | 'loss-calculator' | 'userscript' | 'api';
+export type SpyReportType = 'player' | 'old-empire' | 'corsair-fortress';
+
+export type ReportResources = {
+  gold: number;
+  stone: number;
+  wood: number;
+};
 
 export type SpyReportRow = {
   id: string;
@@ -16,18 +23,25 @@ export type SpyReportRow = {
 };
 
 export type ParsedSpyReport = {
-  reportedAt: string;
+  reportType: SpyReportType | null;
+  reportedAt: string | null;
   targetPlayer: string | null;
   targetAlliance: string | null;
   ocean: number | null;
   islandX: number | null;
   islandY: number | null;
+  resources: ReportResources | null;
+  validationErrors: string[];
+  isValid: boolean;
 };
 
-export type SpyReportUpload = ParsedSpyReport & {
+export type SpyReportUpload = Omit<ParsedSpyReport, 'reportedAt' | 'validationErrors' | 'isValid'> & {
+  reportedAt: string;
   rawReport: string;
   source: ReportSource;
 };
+
+const REQUIRED_PLAYER_SECTIONS = ['Gebäude', 'Truppen', 'Schiffe', 'Ressourcen', 'Forschen'];
 
 const trimValue = (value: string | undefined): string | null => {
   const trimmed = value?.trim();
@@ -39,17 +53,17 @@ const parseInteger = (value: string | undefined): number | null => {
     return null;
   }
 
-  const parsed = Number.parseInt(value, 10);
+  const parsed = Number.parseInt(value.replace(/\./g, ''), 10);
   return Number.isFinite(parsed) ? parsed : null;
 };
 
-const parseReportDate = (rawReport: string): string => {
+const parseReportDate = (rawReport: string): string | null => {
   const match = rawReport.match(
     /(?:datum|zeit|uhrzeit|date|time)\s*:?\s*(\d{1,2})\.(\d{1,2})\.(\d{2,4})(?:,?\s+(\d{1,2}):(\d{2}))?/i,
   );
 
   if (!match) {
-    return new Date().toISOString();
+    return null;
   }
 
   const [, day, month, year, hour = '0', minute = '0'] = match;
@@ -62,8 +76,11 @@ const parseReportDate = (rawReport: string): string => {
     Number(minute),
   );
 
-  return Number.isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString();
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
 };
+
+const hasSection = (rawReport: string, section: string): boolean =>
+  new RegExp(`^\\s*${section}\\s*$`, 'im').test(rawReport);
 
 const parseTargetLine = (rawReport: string) => {
   const targetLine = rawReport.match(/^\s*ziel\s*:?\s*(.+)$/im)?.[1];
@@ -78,14 +95,18 @@ const parseTargetLine = (rawReport: string) => {
     };
   }
 
-  const coords = targetLine.match(/\((\d{1,2})\s*:\s*(\d{1,3})\s*:\s*(\d{1,3})\)/);
+  const wrappedCoords = targetLine.match(/\((\d{1,2})\s*:\s*(\d{1,3})\s*:\s*(\d{1,3})\)/);
+  const plainCoords = targetLine.match(/^\s*(\d{1,2})\s*:\s*(\d{1,3})\s*:\s*(\d{1,3})\s*$/);
+  const coords = wrappedCoords ?? plainCoords;
   const alliance = trimValue(targetLine.match(/\[([^\]]+)\]/)?.[1]);
-  const player = trimValue(
-    targetLine
-      .replace(/\[[^\]]+\]/g, '')
-      .replace(/\([^)]+\)/g, '')
-      .replace(/^[^\p{L}\p{N}_-]+/u, ''),
-  );
+  const player = plainCoords
+    ? null
+    : trimValue(
+        targetLine
+          .replace(/\[[^\]]+\]/g, '')
+          .replace(/\([^)]+\)/g, '')
+          .replace(/^[^\p{L}\p{N}_#-]+/u, ''),
+      );
 
   return {
     player,
@@ -96,43 +117,129 @@ const parseTargetLine = (rawReport: string) => {
   };
 };
 
+const detectReportType = (rawReport: string): SpyReportType | null => {
+  if (/Korsaren-Festung gesichtet/i.test(rawReport)) {
+    return 'corsair-fortress';
+  }
+
+  if (/Altreich/i.test(rawReport) && /Fanatiker der Alten See/i.test(rawReport)) {
+    return 'old-empire';
+  }
+
+  if (/^\s*Spähbericht\s*$/im.test(rawReport)) {
+    return 'player';
+  }
+
+  return null;
+};
+
+const parseResourceLine = (rawReport: string, label: string): number | null => {
+  const match = rawReport.match(new RegExp(`^\\s*${label}\\s+([\\d.]+)\\b`, 'im'));
+  return parseInteger(match?.[1]);
+};
+
+const parseCorsairResourceLine = (rawReport: string, label: string): number | null => {
+  const match = rawReport.match(
+    new RegExp(`^\\s*Geschätzte Beute \\(${label}\\)\\s+([\\d.]+)\\b`, 'im'),
+  );
+  return parseInteger(match?.[1]);
+};
+
+const parseResources = (rawReport: string, reportType: SpyReportType | null): ReportResources | null => {
+  const gold = reportType === 'corsair-fortress'
+    ? parseCorsairResourceLine(rawReport, 'Gold')
+    : parseResourceLine(rawReport, 'Gold');
+  const stone = reportType === 'corsair-fortress'
+    ? parseCorsairResourceLine(rawReport, 'Stein')
+    : parseResourceLine(rawReport, 'Stein');
+  const wood = reportType === 'corsair-fortress'
+    ? parseCorsairResourceLine(rawReport, 'Holz')
+    : parseResourceLine(rawReport, 'Holz');
+
+  return gold === null || stone === null || wood === null ? null : { gold, stone, wood };
+};
+
+const validateReport = (
+  rawReport: string,
+  reportType: SpyReportType | null,
+  reportedAt: string | null,
+  target: ReturnType<typeof parseTargetLine>,
+  resources: ReportResources | null,
+): string[] => {
+  const errors: string[] = [];
+
+  if (!reportType) errors.push('Berichtstyp muss Spieler, Altreich oder Korsaren-Festung sein.');
+  if (!reportedAt) errors.push('Datum fehlt oder ist unlesbar.');
+  if (target.ocean === null || target.islandY === null || target.islandX === null) {
+    errors.push('Ziel-Koordinaten fehlen oder sind unlesbar.');
+  }
+  if (!resources) errors.push('Ressourcen Gold, Stein und Holz muessen vorhanden sein.');
+
+  if (reportType === 'player') {
+    if (!target.player) errors.push('Spielerbericht braucht einen Ziel-Spieler.');
+    REQUIRED_PLAYER_SECTIONS.forEach((section) => {
+      if (!hasSection(rawReport, section)) errors.push(`Abschnitt ${section} fehlt.`);
+    });
+  }
+
+  if (reportType === 'old-empire') {
+    if (!target.player) errors.push('Altreich-Bericht braucht einen Ziel-Namen.');
+    if (!hasSection(rawReport, 'Ressourcen')) errors.push('Altreich-Bericht braucht den Ressourcen-Abschnitt.');
+  }
+
+  if (reportType === 'corsair-fortress') {
+    if (!/^ziel\s*:?\s*\d{1,2}\s*:\s*\d{1,3}\s*:\s*\d{1,3}\s*$/im.test(rawReport)) {
+      errors.push('Korsaren-Festung braucht Ziel-Koordinaten ohne Spielernamen.');
+    }
+    if (!/^Bastions-Stärke\s+[\d.]+\b/im.test(rawReport)) errors.push('Bastions-Staerke fehlt.');
+    if (!/^Errichtet\s+\d{1,2}\.\d{1,2}\.\d{2,4},?\s+\d{1,2}:\d{2}/im.test(rawReport)) {
+      errors.push('Errichtet-Zeitpunkt fehlt.');
+    }
+    if (!/^Verfällt\s+\d{1,2}\.\d{1,2}\.\d{2,4},?\s+\d{1,2}:\d{2}/im.test(rawReport)) {
+      errors.push('Verfaellt-Zeitpunkt fehlt.');
+    }
+    if (!/^Status:\s*\S+/im.test(rawReport)) errors.push('Status fehlt.');
+  }
+
+  return errors;
+};
+
 export const parseSpyReportText = (rawReport: string): ParsedSpyReport => {
+  const reportType = detectReportType(rawReport);
+  const reportedAt = parseReportDate(rawReport);
   const target = parseTargetLine(rawReport);
-  const targetPlayer = target.player ?? trimValue(
-    rawReport.match(/(?:spieler|player)\s*:?\s*([^\n\r]+)/i)?.[1],
-  );
-  const targetAlliance = target.alliance ?? trimValue(
-    rawReport.match(/(?:allianz|alliance)\s*:?\s*([^\n\r]+)/i)?.[1],
-  );
-  const ocean =
-    target.ocean ?? parseInteger(rawReport.match(/(?:ozean|ocean)\s*:?\s*(\d{1,2})/i)?.[1]);
-  const coords =
-    rawReport.match(
-      /(?:koordinaten|position|insel|island)\s*:?\s*(\d{1,3})\s*[|:\/]\s*(\d{1,3})/i,
-    ) ?? rawReport.match(/\b(\d{1,3})\s*\|\s*(\d{1,3})\b/i);
+  const resources = parseResources(rawReport, reportType);
+  const validationErrors = validateReport(rawReport, reportType, reportedAt, target, resources);
 
   return {
-    reportedAt: parseReportDate(rawReport),
-    targetPlayer,
-    targetAlliance,
-    ocean,
-    islandX: target.islandX ?? parseInteger(coords?.[1]),
-    islandY: target.islandY ?? parseInteger(coords?.[2]),
+    reportType,
+    reportedAt,
+    targetPlayer: target.player ?? (reportType === 'corsair-fortress' ? 'Korsaren-Festung' : null),
+    targetAlliance: target.alliance,
+    ocean: target.ocean,
+    islandX: target.islandX,
+    islandY: target.islandY,
+    resources,
+    validationErrors,
+    isValid: validationErrors.length === 0,
   };
 };
 
 export const normalizeReportForHash = (rawReport: string): string =>
   rawReport.replace(/\s+/g, ' ').trim().toLowerCase();
 
-export const buildReportUpload = (
-  rawReport: string,
-  overrides: Partial<ParsedSpyReport> = {},
-): SpyReportUpload => {
+export const buildReportUpload = (rawReport: string): SpyReportUpload => {
   const parsed = parseSpyReportText(rawReport);
+
+  if (!parsed.isValid || !parsed.reportedAt) {
+    throw new Error(`Ungueltiger Bericht: ${parsed.validationErrors.join(' ')}`);
+  }
 
   return {
     ...parsed,
-    ...overrides,
+    reportType: parsed.reportType,
+    resources: parsed.resources,
+    reportedAt: parsed.reportedAt,
     rawReport,
     source: 'manual',
   };

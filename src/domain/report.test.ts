@@ -1,41 +1,116 @@
 import { describe, expect, it } from 'vitest';
 import { normalizeReportForHash, parseSpyReportText } from './report';
 
+const playerReport = `
+Spähbericht
+
+Datum: 20.05.2026, 04:18
+Aufgenommen am: 20.05.2026, 04:18
+Spion: 👑 kaba [BIER] (17:7:8)
+Ziel: ⚓ ler12167 [BnH] (17:2:20)
+
+Gebäude
+Gebäude\tStufe
+Haupthaus\t11
+
+Truppen
+Einheit\tAnzahl
+Steinwerfer\t18
+
+Schiffe
+Schiff\tAnzahl
+Kleines Kriegsschiff\t5
+
+Ressourcen
+Ressource\tMenge
+Gold\t1699
+Stein\t1195
+Holz\t2366
+
+Forschen
+Technologie\tStufe
+Segel\t4
+`;
+
+const oldEmpireReport = `
+Spähbericht
+
+Datum: 31.05.2026, 18:57
+Spion: 👑 kaba [BIER] (15:1:13)
+Ziel: 🪵 Altreich #31588511 (15:7:11)
+
+Verteidigungsaura
+Fanatiker der Alten See
+
+Ressourcen
+Ressource\tMenge
+Gold\t777
+Stein\t389
+Holz\t443
+`;
+
+const corsairReport = `
+Korsaren-Festung gesichtet
+
+Datum: 31.05.2026, 16:17
+Spion: 👑 kaba [BIER] (15:1:13)
+Ziel: 15:1:12
+
+Korsaren-Festung gesichtet
+Bastions-Stärke\t60000
+Geschätzte Beute (Gold)\t16666
+Geschätzte Beute (Stein)\t16666
+Geschätzte Beute (Holz)\t16666
+Errichtet\t30.05.2026, 18:07
+Verfällt\t06.06.2026, 18:07
+Status: Aktiv
+`;
+
 describe('parseSpyReportText', () => {
-  it('extracts common report metadata', () => {
-    const parsed = parseSpyReportText(`
-      Datum: 31.05.2026 15:30
-      Spieler: Testspieler
-      Allianz: TEST
-      Ozean: 12
-      Insel: 345|678
-    `);
+  it('accepts player spy reports with required sections and resources', () => {
+    const parsed = parseSpyReportText(playerReport);
 
-    expect(parsed.targetPlayer).toBe('Testspieler');
-    expect(parsed.targetAlliance).toBe('TEST');
-    expect(parsed.ocean).toBe(12);
-    expect(parsed.islandX).toBe(345);
-    expect(parsed.islandY).toBe(678);
-  });
-
-  it('extracts target metadata from Kampfinsel spy reports', () => {
-    const parsed = parseSpyReportText(`
-      Spähbericht
-
-      Datum: 31.05.2026, 03:03
-
-      Spion: 👑 kaba [BIER] (18:6:13)
-
-      Ziel: 🏴‍☠️ dukolek [BEST] (19:2:20)
-    `);
-
-    expect(parsed.targetPlayer).toBe('dukolek');
-    expect(parsed.targetAlliance).toBe('BEST');
-    expect(parsed.ocean).toBe(19);
+    expect(parsed.isValid).toBe(true);
+    expect(parsed.reportType).toBe('player');
+    expect(parsed.targetPlayer).toBe('ler12167');
+    expect(parsed.targetAlliance).toBe('BnH');
+    expect(parsed.ocean).toBe(17);
     expect(parsed.islandY).toBe(2);
     expect(parsed.islandX).toBe(20);
-    expect(new Date(parsed.reportedAt).getHours()).toBe(3);
-    expect(new Date(parsed.reportedAt).getMinutes()).toBe(3);
+    expect(parsed.resources).toEqual({ gold: 1699, stone: 1195, wood: 2366 });
+  });
+
+  it('accepts old empire reports with coordinates and resources', () => {
+    const parsed = parseSpyReportText(oldEmpireReport);
+
+    expect(parsed.isValid).toBe(true);
+    expect(parsed.reportType).toBe('old-empire');
+    expect(parsed.targetPlayer).toBe('Altreich #31588511');
+    expect(parsed.ocean).toBe(15);
+    expect(parsed.islandY).toBe(7);
+    expect(parsed.islandX).toBe(11);
+    expect(parsed.resources).toEqual({ gold: 777, stone: 389, wood: 443 });
+  });
+
+  it('accepts corsair fortress reports with bastion, loot, dates, and status', () => {
+    const parsed = parseSpyReportText(corsairReport);
+
+    expect(parsed.isValid).toBe(true);
+    expect(parsed.reportType).toBe('corsair-fortress');
+    expect(parsed.targetPlayer).toBe('Korsaren-Festung');
+    expect(parsed.ocean).toBe(15);
+    expect(parsed.islandY).toBe(1);
+    expect(parsed.islandX).toBe(12);
+    expect(parsed.resources).toEqual({ gold: 16666, stone: 16666, wood: 16666 });
+  });
+
+  it('rejects malformed reports before upload', () => {
+    const parsed = parseSpyReportText('Spähbericht\n\nZiel: irgendwas');
+
+    expect(parsed.isValid).toBe(false);
+    expect(parsed.validationErrors).toContain('Datum fehlt oder ist unlesbar.');
+    expect(parsed.validationErrors).toContain('Ziel-Koordinaten fehlen oder sind unlesbar.');
+    expect(parsed.validationErrors).toContain('Ressourcen Gold, Stein und Holz muessen vorhanden sein.');
   });
 });
 

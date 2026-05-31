@@ -87,7 +87,15 @@ export const App = () => {
     setIsLoading(true);
     setMessage(null);
 
-    const upload = buildReportUpload(rawReport);
+    let upload;
+    try {
+      upload = buildReportUpload(rawReport);
+    } catch (error) {
+      setIsLoading(false);
+      setMessage(error instanceof Error ? error.message : 'Ungueltiger Bericht.');
+      return;
+    }
+
     const reportHash = await hashReport(upload.rawReport);
     const { error } = await supabase.from('spy_reports').insert(
       {
@@ -100,12 +108,14 @@ export const App = () => {
         island_y: upload.islandY,
         raw_report: upload.rawReport,
         parsed_report: {
+          reportType: upload.reportType,
           reportedAt: upload.reportedAt,
           targetPlayer: upload.targetPlayer,
           targetAlliance: upload.targetAlliance,
           ocean: upload.ocean,
           islandX: upload.islandX,
           islandY: upload.islandY,
+          resources: upload.resources,
         },
         source: upload.source,
       },
@@ -154,12 +164,18 @@ export const App = () => {
           />
           <div className="metadata-grid">
             <div>
+              Typ
+              <strong>{parsedPreview.reportType ?? '-'}</strong>
+            </div>
+            <div>
               Zeitpunkt
               <strong>
-                {new Intl.DateTimeFormat('de-DE', {
-                  dateStyle: 'short',
-                  timeStyle: 'short',
-                }).format(new Date(parsedPreview.reportedAt))}
+                {parsedPreview.reportedAt
+                  ? new Intl.DateTimeFormat('de-DE', {
+                      dateStyle: 'short',
+                      timeStyle: 'short',
+                    }).format(new Date(parsedPreview.reportedAt))
+                  : '-'}
               </strong>
             </div>
             <div>
@@ -177,8 +193,29 @@ export const App = () => {
                 {parsedPreview.islandX ?? '-'}
               </strong>
             </div>
+            <div>
+              Ressourcen
+              <strong>
+                {parsedPreview.resources
+                  ? `${parsedPreview.resources.gold}/${parsedPreview.resources.stone}/${parsedPreview.resources.wood}`
+                  : '-'}
+              </strong>
+            </div>
           </div>
-          <button type="submit" disabled={isLoading || !isSupabaseConfigured || !rawReport.trim()}>
+          {rawReport.trim() && !parsedPreview.isValid && (
+            <div className="validation-errors">
+              {parsedPreview.validationErrors.map((error) => (
+                <div key={error}>{error}</div>
+              ))}
+            </div>
+          )}
+          {rawReport.trim() && parsedPreview.isValid && (
+            <div className="validation-ok">Bericht ist gueltig und kann gespeichert werden.</div>
+          )}
+          <button
+            type="submit"
+            disabled={isLoading || !isSupabaseConfigured || !rawReport.trim() || !parsedPreview.isValid}
+          >
             Speichern
           </button>
         </form>

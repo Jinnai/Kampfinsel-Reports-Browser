@@ -137,6 +137,24 @@ label {
   overflow-wrap: anywhere;
 }
 
+.validation-errors,
+.validation-ok {
+  border-radius: 6px;
+  padding: 0.75rem;
+}
+
+.validation-errors {
+  background: #fff0f0;
+  border: 1px solid #f0b4b4;
+  color: #8a1f1f;
+}
+
+.validation-ok {
+  background: #eef9f0;
+  border: 1px solid #abd9b6;
+  color: #1d6b32;
+}
+
 .filters {
   align-items: end;
   grid-template-columns: 8rem repeat(3, minmax(0, 1fr)) auto;
