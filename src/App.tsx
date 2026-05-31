@@ -198,10 +198,10 @@ export const App = () => {
                   setFilters((current) => ({ ...current, maxAgeDays: Number(event.target.value) }))
                 }
               >
+                <option value={1}>1 Tage</option>
                 <option value={2}>2 Tage</option>
                 <option value={7}>7 Tage</option>
                 <option value={30}>30 Tage</option>
-                <option value={180}>180 Tage</option>
               </select>
             </label>
             <label>
@@ -245,7 +245,6 @@ export const App = () => {
                   <span>{report.target_alliance || 'Keine Allianz'}</span>
                 </div>
                 <div>
-                  <span>Ozean {report.ocean ?? '-'}</span>
                   <span>
                     {report.ocean ?? '-'}:{report.island_y ?? '-'}:{report.island_x ?? '-'}
                   </span>
