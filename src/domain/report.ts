@@ -91,8 +91,8 @@ const parseTargetLine = (rawReport: string) => {
     player,
     alliance,
     ocean: parseInteger(coords?.[1]),
-    islandX: parseInteger(coords?.[2]),
-    islandY: parseInteger(coords?.[3]),
+    islandY: parseInteger(coords?.[2]),
+    islandX: parseInteger(coords?.[3]),
   };
 };
 

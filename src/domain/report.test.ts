@@ -32,8 +32,8 @@ describe('parseSpyReportText', () => {
     expect(parsed.targetPlayer).toBe('dukolek');
     expect(parsed.targetAlliance).toBe('BEST');
     expect(parsed.ocean).toBe(19);
-    expect(parsed.islandX).toBe(2);
-    expect(parsed.islandY).toBe(20);
+    expect(parsed.islandY).toBe(2);
+    expect(parsed.islandX).toBe(20);
     expect(new Date(parsed.reportedAt).getHours()).toBe(3);
     expect(new Date(parsed.reportedAt).getMinutes()).toBe(3);
   });

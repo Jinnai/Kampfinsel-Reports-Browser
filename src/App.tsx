@@ -178,7 +178,8 @@ export const App = () => {
             <div>
               Koordinaten
               <strong>
-                {parsedPreview.islandX ?? '-'}:{parsedPreview.islandY ?? '-'}
+                {parsedPreview.ocean ?? '-'}:{parsedPreview.islandY ?? '-'}:
+                {parsedPreview.islandX ?? '-'}
               </strong>
             </div>
           </div>
@@ -250,7 +251,7 @@ export const App = () => {
                 <div>
                   <span>Ozean {report.ocean ?? '-'}</span>
                   <span>
-                    {report.island_x ?? '-'}|{report.island_y ?? '-'}
+                    {report.ocean ?? '-'}:{report.island_y ?? '-'}:{report.island_x ?? '-'}
                   </span>
                 </div>
                 <time dateTime={report.reported_at}>
