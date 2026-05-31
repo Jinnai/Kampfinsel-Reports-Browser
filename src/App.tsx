@@ -128,7 +128,6 @@ export const App = () => {
       <header className="topbar">
         <div>
           <h1>Kampfinsel Berichte</h1>
-          <p>Spahberichte hochladen, deduplizieren und schnell wiederfinden.</p>
         </div>
         <button type="button" onClick={loadReports} disabled={isLoading || !isSupabaseConfigured}>
           Aktualisieren
