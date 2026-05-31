@@ -172,10 +172,6 @@ export const App = () => {
               <strong>{parsedPreview.targetAlliance ?? '-'}</strong>
             </div>
             <div>
-              Ozean
-              <strong>{parsedPreview.ocean ?? '-'}</strong>
-            </div>
-            <div>
               Koordinaten
               <strong>
                 {parsedPreview.ocean ?? '-'}:{parsedPreview.islandY ?? '-'}:
