@@ -232,6 +232,34 @@ export const parseSpyReportText = (rawReport: string): ParsedSpyReport => {
   };
 };
 
+export const sectionBody = (rawReport: string, start: string, endMarkers: string[]): string => {
+  const startMatch = new RegExp(`^\\s*${start}\\s*$`, 'im').exec(rawReport);
+  if (!startMatch) return '';
+
+  const startIndex = startMatch.index + startMatch[0].length;
+  const rest = rawReport.slice(startIndex);
+  if (!endMarkers.length) return rest;
+  const endPattern = new RegExp(`^\\s*(?:${endMarkers.join('|')})\\s*$`, 'im');
+  const endMatch = endPattern.exec(rest);
+  return endMatch ? rest.slice(0, endMatch.index) : rest;
+};
+
+export const parseSectionEntries = (
+  rawReport: string,
+  start: string,
+  endMarkers: string[],
+): Array<{ name: string; count: number }> =>
+  sectionBody(rawReport, start, endMarkers)
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .flatMap((line) => {
+      const match = line.match(/^(.+?)\s+([\d.]+)$/);
+      if (!match) return [];
+      const count = Number(match[2].replace(/\./g, ''));
+      return count > 0 ? [{ name: match[1], count }] : [];
+    });
+
 export const normalizeReportForHash = (rawReport: string): string =>
   rawReport.replace(/\s+/g, ' ').trim().toLowerCase();
 
