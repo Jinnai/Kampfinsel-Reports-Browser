@@ -4,7 +4,9 @@ import {
   formatReportCoordinates,
   matchesCoordinatePrefix,
   normalizeReportForHash,
+  parseSectionEntries,
   parseSpyReportText,
+  sectionBody,
   type ReportResources,
   type SpyReportRow,
 } from './domain/report';
@@ -245,17 +247,6 @@ const formatCompactNumber = (value: number): string => {
   return numberFormatter.format(value);
 };
 
-const sectionBody = (rawReport: string, start: string, endMarkers: string[]): string => {
-  const startMatch = new RegExp(`^\\s*${start}\\s*$`, 'im').exec(rawReport);
-  if (!startMatch) return '';
-
-  const startIndex = startMatch.index + startMatch[0].length;
-  const rest = rawReport.slice(startIndex);
-  if (!endMarkers.length) return rest;
-  const endPattern = new RegExp(`^\\s*(?:${endMarkers.join('|')})\\s*$`, 'im');
-  const endMatch = endPattern.exec(rest);
-  return endMatch ? rest.slice(0, endMatch.index) : rest;
-};
 
 const quantityForName = (sections: string[], name: string): number => {
   const pattern = new RegExp(`^\\s*${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s+([\\d.]+)\\s*$`, 'gim');
@@ -390,18 +381,9 @@ const sortReports = (reports: ReportViewModel[], sortMode: SortMode): ReportView
 };
 
 const parseSectionField = (rawReport: string, start: string, endMarkers: string[]): string => {
-  const body = sectionBody(rawReport, start, endMarkers);
-  const lines = body
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .flatMap((line) => {
-      const match = line.match(/^(.+?)\s+([\d.]+)$/);
-      if (!match) return [];
-      const count = Number(match[2].replace(/\./g, ''));
-      return count > 0 ? [`${match[1]}: ${numberFormatter.format(count)}`] : [];
-    });
-  const value = lines.join('\n');
+  const value = parseSectionEntries(rawReport, start, endMarkers)
+    .map(({ name, count }) => `${name}: ${numberFormatter.format(count)}`)
+    .join('\n');
   return value.length ? (value.length > 1024 ? `${value.slice(0, 1021)}...` : value) : '-';
 };
 
@@ -467,8 +449,7 @@ const sendDiscordWebhook = async (
         inline: false,
       },
     ],
-    timestamp: vm.report.reported_at,
-    footer: { text: 'BIER Intelligence Office' },
+    footer: { text: 'BIER Intelligence Office spied by'  },
   };
 
   await fetch(DISCORD_WEBHOOK_URL, {
