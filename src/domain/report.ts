@@ -130,6 +130,13 @@ const detectReportType = (rawReport: string): SpyReportType | null => {
     return 'player';
   }
 
+  if (
+    /^\s*ziel\s*:/im.test(rawReport)
+    && REQUIRED_PLAYER_SECTIONS.every((section) => hasSection(rawReport, section))
+  ) {
+    return 'player';
+  }
+
   return null;
 };
 

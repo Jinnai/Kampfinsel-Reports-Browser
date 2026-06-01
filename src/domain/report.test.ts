@@ -80,6 +80,41 @@ describe('parseSpyReportText', () => {
     expect(parsed.resources).toEqual({ gold: 1699, stone: 1195, wood: 2366 });
   });
 
+  it('accepts manually copied player reports without the title line', () => {
+    const parsed = parseSpyReportText(`
+Datum: 01.06.2026, 05:47
+Aufgenommen am: 01.06.2026, 05:47
+Spion: 👑 kaba [BIER] (17:7:8)
+Ziel: ⚔ schwabe [BnH] (17:8:18)
+Gebäude
+Gebäude\tStufe
+Haupthaus\t6
+Truppen
+
+Keine Truppen stationiert.
+Schiffe
+
+Keine Schiffe im Hafen.
+Ressourcen
+Ressource\tMenge
+Gold\t2416
+Stein\t611
+Holz\t2041
+Forschen
+Technologie\tStufe
+Schild\t10
+`);
+
+    expect(parsed.isValid).toBe(true);
+    expect(parsed.reportType).toBe('player');
+    expect(parsed.targetPlayer).toBe('schwabe');
+    expect(parsed.targetAlliance).toBe('BnH');
+    expect(parsed.ocean).toBe(17);
+    expect(parsed.islandY).toBe(8);
+    expect(parsed.islandX).toBe(18);
+    expect(parsed.resources).toEqual({ gold: 2416, stone: 611, wood: 2041 });
+  });
+
   it('accepts old empire reports with coordinates and resources', () => {
     const parsed = parseSpyReportText(oldEmpireReport);
 
