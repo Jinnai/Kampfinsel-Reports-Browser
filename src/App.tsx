@@ -70,8 +70,8 @@ const sortOptions = [
   { value: 'newest', label: 'Datum' },
   { value: 'nearest', label: 'Distanz' },
   { value: 'loot-desc', label: 'Beute' },
-  { value: 'def-asc', label: '↓ DEF' },
-  { value: 'def-desc', label: '↑ DEF' },
+  { value: 'def-asc', label: '↑ DEF' },
+  { value: 'def-desc', label: '↓ DEF' },
 ];
 const ageOptions = [
   { value: '1', label: '1 Tag' },
