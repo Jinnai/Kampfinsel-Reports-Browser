@@ -8,6 +8,7 @@ import {
   type ReportResources,
   type SpyReportRow,
 } from './domain/report';
+import { calculateMapDistance, calculateTravelDurationMinutes, parseCoordinates } from './domain/travel';
 import { isSupabaseConfigured, supabase } from './lib/supabase';
 
 type FilterState = {
@@ -56,8 +57,6 @@ const storageKeys = {
 };
 
 const CALCULATOR_URL = 'https://jinnai.github.io/Kampfinsel-Verlustrechner/';
-const TRAVEL_TIME_SECONDS_FACTOR = 1282.62225;
-const SPY_SHIP_SPEED = 12;
 
 const reportTypeLabels: Record<string, string> = {
   player: 'Spieler',
@@ -197,29 +196,20 @@ const parseStoredResources = (report: SpyReportRow): ReportResources => {
   return parseSpyReportText(report.raw_report).resources ?? { gold: 0, stone: 0, wood: 0 };
 };
 
-const parseOwnCoordinates = (value: string) => {
-  const match = value.trim().match(/^(\d{1,2})\s*:\s*(\d{1,2})\s*:\s*(\d{1,2})$/);
-  if (!match) return null;
-
-  return {
-    ocean: Number(match[1]),
-    islandY: Number(match[2]),
-    islandX: Number(match[3]),
-  };
-};
-
 const calculateDistance = (report: SpyReportRow, ownCoordinates: string): number | null => {
-  const own = parseOwnCoordinates(ownCoordinates);
+  const own = parseCoordinates(ownCoordinates);
   if (!own || report.ocean === null || report.island_y === null || report.island_x === null) return null;
 
-  const deltaX = 50 * (report.ocean - own.ocean) + (report.island_x - own.islandX);
-  const deltaY = 5 * (report.island_y - own.islandY);
-  return Math.hypot(deltaX, deltaY);
+  return calculateMapDistance(own, {
+    ocean: report.ocean,
+    row: report.island_y,
+    column: report.island_x,
+  });
 };
 
 const formatTravelTime = (distance: number | null): string => {
   if (distance === null) return '-';
-  const minutes = Math.max(1, Math.round((distance / SPY_SHIP_SPEED) * TRAVEL_TIME_SECONDS_FACTOR / 60));
+  const minutes = calculateTravelDurationMinutes(distance);
   if (minutes < 60) return `${minutes} min`;
   const hours = Math.floor(minutes / 60);
   const restMinutes = minutes % 60;
