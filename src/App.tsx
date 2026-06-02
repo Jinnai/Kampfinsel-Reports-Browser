@@ -4,7 +4,9 @@ import {
   formatReportCoordinates,
   matchesCoordinatePrefix,
   normalizeReportForHash,
+  parseSectionEntries,
   parseSpyReportText,
+  sectionBody,
   type ReportResources,
   type SpyReportRow,
 } from './domain/report';
@@ -57,6 +59,9 @@ const storageKeys = {
 };
 
 const CALCULATOR_URL = 'https://jinnai.github.io/Kampfinsel-Verlustrechner/';
+const TRAVEL_TIME_SECONDS_FACTOR = 1282.62225;
+const SPY_SHIP_SPEED = 12;
+const DISCORD_WEBHOOK_URL = import.meta.env.VITE_DISCORD_WEBHOOK_URL as string | undefined;
 
 const reportTypeLabels: Record<string, string> = {
   player: 'Spieler',
@@ -234,16 +239,6 @@ const formatCompactNumber = (value: number): string => {
   return numberFormatter.format(value);
 };
 
-const sectionBody = (rawReport: string, start: string, endMarkers: string[]): string => {
-  const startMatch = new RegExp(`^\\s*${start}\\s*$`, 'im').exec(rawReport);
-  if (!startMatch) return '';
-
-  const startIndex = startMatch.index + startMatch[0].length;
-  const rest = rawReport.slice(startIndex);
-  const endPattern = new RegExp(`^\\s*(?:${endMarkers.join('|')})\\s*$`, 'im');
-  const endMatch = endPattern.exec(rest);
-  return endMatch ? rest.slice(0, endMatch.index) : rest;
-};
 
 const quantityForName = (sections: string[], name: string): number => {
   const pattern = new RegExp(`^\\s*${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s+([\\d.]+)\\s*$`, 'gim');
@@ -375,6 +370,85 @@ const sortReports = (reports: ReportViewModel[], sortMode: SortMode): ReportView
   });
 
   return sorted;
+};
+
+const parseSectionField = (rawReport: string, start: string, endMarkers: string[]): string => {
+  const value = parseSectionEntries(rawReport, start, endMarkers)
+    .map(({ name, count }) => `${name}: ${numberFormatter.format(count)}`)
+    .join('\n');
+  return value.length ? (value.length > 1024 ? `${value.slice(0, 1021)}...` : value) : '-';
+};
+
+const sendDiscordWebhook = async (
+  upload: ReturnType<typeof buildReportUpload>,
+): Promise<void> => {
+  if (!DISCORD_WEBHOOK_URL) return;
+
+  const partialRow: SpyReportRow = {
+    id: '',
+    report_hash: '',
+    reported_at: upload.reportedAt,
+    target_player: upload.targetPlayer ?? null,
+    target_alliance: upload.targetAlliance ?? null,
+    ocean: upload.ocean,
+    island_x: upload.islandX,
+    island_y: upload.islandY,
+    raw_report: upload.rawReport,
+    parsed_report: { resources: upload.resources },
+    source: upload.source,
+    created_at: new Date().toISOString(),
+  };
+
+  const vm = toViewModel(partialRow, '');
+  const reportTypeLabel = reportTypeLabels[upload.reportType ?? ''] ?? upload.reportType ?? 'Unbekannt';
+  const absoluteDate = new Intl.DateTimeFormat('de-DE', { dateStyle: 'short', timeStyle: 'short' }).format(
+    new Date(vm.report.reported_at),
+  );
+
+  const raw = upload.rawReport;
+  const allSections = ['Gebäude', 'Truppen', 'Schiffe', 'Ressourcen', 'Verbündete Verstärkungen', 'Forschen'];
+
+  const embed = {
+    title: vm.displayName,
+    description: `📍 **${vm.coordinates}** · ${absoluteDate}`,
+    color: 0x5865F2,
+    fields: [
+      {
+        name: 'Gebäude',
+        value: parseSectionField(raw, 'Gebäude', allSections.slice(1)),
+        inline: true,
+      },
+      {
+        name: 'Forschen',
+        value: parseSectionField(raw, 'Forschen', []),
+        inline: true,
+      },
+      { name: '​', value: '​', inline: true },
+      {
+        name: 'Truppen',
+        value: parseSectionField(raw, 'Truppen', ['Schiffe', 'Ressourcen', 'Verbündete Verstärkungen', 'Forschen']),
+        inline: true,
+      },
+      {
+        name: 'Schiffe',
+        value: parseSectionField(raw, 'Schiffe', ['Ressourcen', 'Verbündete Verstärkungen', 'Forschen']),
+        inline: true,
+      },
+      { name: '​', value: '​', inline: true },
+      {
+        name: 'Ressourcen',
+        value: `⚜ ${numberFormatter.format(vm.resources.gold)}\n🪨 ${numberFormatter.format(vm.resources.stone)}\n🪵 ${numberFormatter.format(vm.resources.wood)}\n**Beute: ${formatCompactNumber(vm.lootTotal)}**`,
+        inline: false,
+      },
+    ],
+    footer: { text: 'BIER Intelligence Office spied by'  },
+  };
+
+  await fetch(DISCORD_WEBHOOK_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username: 'BIER Intelligence Office', embeds: [embed] }),
+  });
 };
 
 type CustomSelectProps = {
@@ -582,6 +656,7 @@ export const App = () => {
     setRawReport('');
     setMessage(error?.code === '23505' ? 'Bericht war bereits vorhanden.' : 'Bericht gespeichert.');
     setViewMode('browse');
+    if (!error) void sendDiscordWebhook(upload).catch(() => undefined);
     await loadReports();
   };
 
