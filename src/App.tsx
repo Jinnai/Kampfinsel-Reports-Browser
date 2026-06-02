@@ -10,7 +10,7 @@ import {
   type ReportResources,
   type SpyReportRow,
 } from './domain/report';
-import { calculateMapDistance, calculateTravelDurationMinutes, parseCoordinates } from './domain/travel';
+import { calculateNauticalMiles, parseCoordinates } from './domain/travel';
 import { isSupabaseConfigured, supabase } from './lib/supabase';
 
 type FilterState = {
@@ -40,7 +40,7 @@ type ReportViewModel = {
   defense: DefenseSummary;
   defenseTotal: number;
   distance: number | null;
-  travelTime: string;
+  distanceLabel: string;
   relativeTime: string;
 };
 
@@ -59,8 +59,6 @@ const storageKeys = {
 };
 
 const CALCULATOR_URL = 'https://jinnai.github.io/Kampfinsel-Verlustrechner/';
-const TRAVEL_TIME_SECONDS_FACTOR = 1282.62225;
-const SPY_SHIP_SPEED = 12;
 const DISCORD_WEBHOOK_URL = import.meta.env.VITE_DISCORD_WEBHOOK_URL as string | undefined;
 
 const reportTypeLabels: Record<string, string> = {
@@ -201,24 +199,25 @@ const parseStoredResources = (report: SpyReportRow): ReportResources => {
   return parseSpyReportText(report.raw_report).resources ?? { gold: 0, stone: 0, wood: 0 };
 };
 
+const distanceFormatter = new Intl.NumberFormat('de-DE', {
+  maximumFractionDigits: 1,
+  minimumFractionDigits: 0,
+});
+
 const calculateDistance = (report: SpyReportRow, ownCoordinates: string): number | null => {
   const own = parseCoordinates(ownCoordinates);
   if (!own || report.ocean === null || report.island_y === null || report.island_x === null) return null;
 
-  return calculateMapDistance(own, {
+  return calculateNauticalMiles(own, {
     ocean: report.ocean,
     row: report.island_y,
     column: report.island_x,
   });
 };
 
-const formatTravelTime = (distance: number | null): string => {
+const formatDistance = (distance: number | null): string => {
   if (distance === null) return '-';
-  const minutes = calculateTravelDurationMinutes(distance);
-  if (minutes < 60) return `${minutes} min`;
-  const hours = Math.floor(minutes / 60);
-  const restMinutes = minutes % 60;
-  return restMinutes ? `${hours} h ${restMinutes} min` : `${hours} h`;
+  return `${distanceFormatter.format(distance)} nm`;
 };
 
 const formatRelativeTime = (value: string): string => {
@@ -353,7 +352,7 @@ const toViewModel = (report: SpyReportRow, ownCoordinates: string): ReportViewMo
     defense,
     defenseTotal: defense.p1 + defense.p2 + defense.p3,
     distance,
-    travelTime: formatTravelTime(distance),
+    distanceLabel: formatDistance(distance),
     relativeTime: formatRelativeTime(report.reported_at),
   };
 };
@@ -762,7 +761,7 @@ export const App = () => {
                 }
                 placeholder="15:1:13"
               />
-              <span>Basis für Fahrtzeit (max. Forschung)</span>
+              <span>Basis für Distanzberechnung</span>
             </label>
           </aside>
 
@@ -806,7 +805,7 @@ export const App = () => {
                     <strong>{item.coordinates}</strong>
                     <em>
                       <span className="material-symbols-outlined" aria-hidden="true">sailing</span>
-                      {item.travelTime}
+                      {item.distanceLabel}
                     </em>
                   </div>
                   <div className="card-body">

@@ -1,5 +1,4 @@
-export const TRAVEL_TIME_SECONDS_FACTOR = 1282.62225;
-export const SPY_SHIP_SPEED = 12;
+export const MAP_DISTANCE_UNIT_NM = 0.4;
 
 export type MapCoordinates = {
   ocean: number;
@@ -36,5 +35,5 @@ export const calculateMapDistance = (start: MapCoordinates, end: MapCoordinates)
   return Math.hypot(deltaX, deltaY);
 };
 
-export const calculateTravelDurationMinutes = (distance: number, speed = SPY_SHIP_SPEED): number =>
-  Math.max(1, Math.round((distance / speed) * TRAVEL_TIME_SECONDS_FACTOR / 60));
+export const calculateNauticalMiles = (start: MapCoordinates, end: MapCoordinates): number =>
+  calculateMapDistance(start, end) * MAP_DISTANCE_UNIT_NM;
