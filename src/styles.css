@@ -619,6 +619,14 @@ textarea {
   text-align: right;
 }
 
+.resource-row img {
+  display: block;
+  flex: 0 0 auto;
+  height: 0.95rem;
+  object-fit: contain;
+  width: 0.95rem;
+}
+
 .defense-values,
 .defense-row span {
   align-items: center;

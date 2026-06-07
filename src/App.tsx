@@ -12,6 +12,9 @@ import {
 } from './domain/report';
 import { calculateNauticalMiles, parseCoordinates } from './domain/travel';
 import { isSupabaseConfigured, supabase } from './lib/supabase';
+import goldIcon from '../assets/gold-v3-96.webp';
+import stoneIcon from '../assets/stone-v3-96.webp';
+import woodIcon from '../assets/wood-v3-96.webp';
 
 type FilterState = {
   maxAgeDays: number;
@@ -66,6 +69,12 @@ const reportTypeLabels: Record<string, string> = {
   'old-empire': 'Altreich',
   'corsair-fortress': 'Korsaren-Festung',
 };
+
+const resourceIcons = {
+  gold: goldIcon,
+  stone: stoneIcon,
+  wood: woodIcon,
+} as const;
 
 const sortModes: SortMode[] = ['newest', 'nearest', 'loot-desc', 'def-asc', 'def-desc'];
 const sortOptions = [
@@ -823,9 +832,18 @@ export const App = () => {
                         </span>
                       </div>
                       <div className="resource-row">
-                        <span>⚜ {formatCompactNumber(item.resources.gold)}</span>
-                        <span>🪨 {formatCompactNumber(item.resources.stone)}</span>
-                        <span>🪵 {formatCompactNumber(item.resources.wood)}</span>
+                        <span>
+                          <img src={resourceIcons.gold} alt="" aria-hidden="true" />
+                          {formatCompactNumber(item.resources.gold)}
+                        </span>
+                        <span>
+                          <img src={resourceIcons.stone} alt="" aria-hidden="true" />
+                          {formatCompactNumber(item.resources.stone)}
+                        </span>
+                        <span>
+                          <img src={resourceIcons.wood} alt="" aria-hidden="true" />
+                          {formatCompactNumber(item.resources.wood)}
+                        </span>
                       </div>
                     </div>
                   </div>
