@@ -544,6 +544,7 @@ textarea {
   display: flex;
   flex-direction: column;
   gap: 0.85rem;
+  height: 100%;
   min-width: 0;
 }
 
@@ -572,12 +573,7 @@ textarea {
 }
 
 .card-ledger {
-  align-items: end;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-  justify-content: space-between;
-  margin-top: 0.35rem;
+  display: contents;
 }
 
 .resource-row,
@@ -589,7 +585,7 @@ textarea {
 }
 
 .defense-row {
-  align-self: end;
+  align-self: start;
   gap: 0.4rem;
   grid-template-columns: max-content max-content;
   justify-items: start;
@@ -598,6 +594,7 @@ textarea {
 .resource-row {
   justify-items: end;
   margin-left: auto;
+  margin-top: auto;
 }
 
 .resource-row span,
@@ -1050,6 +1047,44 @@ textarea {
     min-height: 36rem;
   }
 
+  .card-ledger {
+    display: contents;
+  }
+
+  .defense-row {
+    align-self: start;
+    gap: 0.4rem;
+    grid-template-columns: max-content max-content;
+    justify-self: start;
+  }
+
+  .defense-row .defense-icon {
+    font-size: 1.55rem;
+  }
+
+  .defense-values {
+    align-items: center;
+    display: grid;
+    gap: 0.08rem;
+    justify-content: start;
+  }
+
+  .defense-values span {
+    display: block;
+    white-space: normal;
+  }
+
+  .resource-row {
+    display: grid;
+    flex-wrap: initial;
+    gap: 0.45rem;
+    grid-template-columns: repeat(3, max-content);
+    justify-content: end;
+    margin-left: auto;
+    min-width: 0;
+    width: auto;
+  }
+
   .ledger-layout.detail-open .report-card:not(.selected) {
     display: none;
   }
@@ -1241,12 +1276,15 @@ textarea {
     display: grid;
     gap: 0.5rem;
     grid-template-columns: 1fr;
-    margin-top: 0;
+    justify-items: end;
+    margin-top: auto;
   }
 
   .defense-row {
-    align-self: start;
+    align-self: end;
     gap: 0.32rem;
+    grid-template-columns: max-content minmax(0, 1fr);
+    justify-self: end;
   }
 
   .defense-row .defense-icon {
@@ -1255,7 +1293,15 @@ textarea {
 
   .defense-values {
     column-gap: 0.42rem;
+    display: flex;
+    flex-wrap: nowrap;
+    justify-content: flex-end;
     row-gap: 0.08rem;
+  }
+
+  .defense-values span {
+    display: inline;
+    white-space: nowrap;
   }
 
   .defense-row span {
@@ -1265,10 +1311,11 @@ textarea {
 
   .resource-row {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 0.38rem 0.65rem;
-    justify-content: flex-start;
+    justify-content: flex-end;
     margin-left: 0;
+    width: 100%;
   }
 
   .resource-row span {
