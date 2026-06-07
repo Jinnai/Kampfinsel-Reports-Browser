@@ -698,6 +698,15 @@ export const App = () => {
           >
             Upload
           </button>
+          <a
+            className="nav-item nav-external"
+            href="https://islandops.samuel-j-schneider.workers.dev/"
+            target="_blank"
+            rel="noreferrer"
+          >
+            <span>World Map</span>
+            <span className="material-symbols-outlined" aria-hidden="true">open_in_new</span>
+          </a>
         </nav>
       </header>
 

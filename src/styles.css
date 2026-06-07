@@ -154,6 +154,17 @@ button:disabled {
   display: inline-flex;
 }
 
+.nav-external {
+  align-items: center;
+  display: inline-flex;
+  gap: 0.35rem;
+}
+
+.nav-external .material-symbols-outlined {
+  font-size: 1rem;
+  font-variation-settings: "FILL" 0, "wght" 500, "GRAD" 0, "opsz" 20;
+}
+
 .notice {
   background: #fff1c7;
   border: 1px solid #d8b25c;
