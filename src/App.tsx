@@ -10,6 +10,7 @@ import {
   type ReportResources,
   type SpyReportRow,
 } from './domain/report';
+import { formatCoordinateInput } from './domain/coordinateInput';
 import { calculateNauticalMiles, parseCoordinates } from './domain/travel';
 import { isSupabaseConfigured, supabase } from './lib/supabase';
 import goldIcon from '../assets/gold-v3-96.webp';
@@ -763,7 +764,7 @@ export const App = () => {
                 <input
                   value={filters.coordinates}
                   onChange={(event) =>
-                    setFilters((current) => ({ ...current, coordinates: event.target.value }))
+                    setFilters((current) => ({ ...current, coordinates: formatCoordinateInput(event.target.value) }))
                   }
                   placeholder="15:"
                 />
@@ -772,13 +773,13 @@ export const App = () => {
 
             <label className="own-coordinate-field">
               Startkoordinate
-              <input
-                value={filters.ownCoordinates}
-                onChange={(event) =>
-                  setFilters((current) => ({ ...current, ownCoordinates: event.target.value }))
-                }
-                placeholder="15:1:13"
-              />
+                <input
+                  value={filters.ownCoordinates}
+                  onChange={(event) =>
+                    setFilters((current) => ({ ...current, ownCoordinates: formatCoordinateInput(event.target.value) }))
+                  }
+                  placeholder="15:1:13"
+                />
               <span>Basis für Distanzberechnung</span>
             </label>
           </aside>
