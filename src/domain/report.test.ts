@@ -145,7 +145,7 @@ Schild\t10
     expect(parsed.isValid).toBe(false);
     expect(parsed.validationErrors).toContain('Datum fehlt oder ist unlesbar.');
     expect(parsed.validationErrors).toContain('Ziel-Koordinaten fehlen oder sind unlesbar.');
-    expect(parsed.validationErrors).toContain('Ressourcen Gold, Stein und Holz muessen vorhanden sein.');
+    expect(parsed.validationErrors).toContain('Ressourcen Gold, Stein und Holz müssen vorhanden sein.');
   });
 });
 

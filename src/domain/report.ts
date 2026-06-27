@@ -180,7 +180,7 @@ const validateReport = (
   if (target.ocean === null || target.islandY === null || target.islandX === null) {
     errors.push('Ziel-Koordinaten fehlen oder sind unlesbar.');
   }
-  if (!resources) errors.push('Ressourcen Gold, Stein und Holz muessen vorhanden sein.');
+  if (!resources) errors.push('Ressourcen Gold, Stein und Holz müssen vorhanden sein.');
 
   if (reportType === 'player') {
     if (!target.player) errors.push('Spielerbericht braucht einen Ziel-Spieler.');
@@ -198,12 +198,12 @@ const validateReport = (
     if (!/^ziel\s*:?\s*\d{1,2}\s*:\s*\d{1,3}\s*:\s*\d{1,3}\s*$/im.test(rawReport)) {
       errors.push('Korsaren-Festung braucht Ziel-Koordinaten ohne Spielernamen.');
     }
-    if (!/^Bastions-Stärke\s+[\d.]+\b/im.test(rawReport)) errors.push('Bastions-Staerke fehlt.');
+    if (!/^Bastions-Stärke\s+[\d.]+\b/im.test(rawReport)) errors.push('Bastions-Stärke fehlt.');
     if (!/^Errichtet\s+\d{1,2}\.\d{1,2}\.\d{2,4},?\s+\d{1,2}:\d{2}/im.test(rawReport)) {
       errors.push('Errichtet-Zeitpunkt fehlt.');
     }
     if (!/^Verfällt\s+\d{1,2}\.\d{1,2}\.\d{2,4},?\s+\d{1,2}:\d{2}/im.test(rawReport)) {
-      errors.push('Verfaellt-Zeitpunkt fehlt.');
+      errors.push('Verfällt-Zeitpunkt fehlt.');
     }
     if (!/^Status:\s*\S+/im.test(rawReport)) errors.push('Status fehlt.');
   }
@@ -284,7 +284,7 @@ export const buildReportUpload = (rawReport: string): SpyReportUpload => {
   const parsed = parseSpyReportText(rawReport);
 
   if (!parsed.isValid || !parsed.reportedAt) {
-    throw new Error(`Ungueltiger Bericht: ${parsed.validationErrors.join(' ')}`);
+    throw new Error(`Ungültiger Bericht: ${parsed.validationErrors.join(' ')}`);
   }
 
   return {
